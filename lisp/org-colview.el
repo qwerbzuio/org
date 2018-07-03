@@ -782,44 +782,45 @@ view for the whole buffer unconditionally.
 
 When COLUMNS-FMT-STRING is non-nil, use it as the column format."
   (interactive "P")
-  (org-columns-remove-overlays)
-  (when global (goto-char (point-min)))
-  (if (markerp org-columns-begin-marker)
-      (move-marker org-columns-begin-marker (point))
-    (setq org-columns-begin-marker (point-marker)))
-  (org-columns-goto-top-level)
-  ;; Initialize `org-columns-current-fmt' and
-  ;; `org-columns-current-fmt-compiled'.
-  (let ((org-columns--time (float-time (current-time))))
-    (org-columns-get-format columns-fmt-string)
-    (unless org-columns-inhibit-recalculation (org-columns-compute-all))
-    (save-excursion
-      (save-restriction
-	(when (and (not global) (org-at-heading-p))
-	  (narrow-to-region (point) (org-end-of-subtree t t)))
-	(when (assoc "CLOCKSUM" org-columns-current-fmt-compiled)
-	  (org-clock-sum))
-	(when (assoc "CLOCKSUM_T" org-columns-current-fmt-compiled)
-	  (org-clock-sum-today))
-	(let ((cache
-	       ;; Collect contents of columns ahead of time so as to
-	       ;; compute their maximum width.
-	       (org-map-entries
-		(lambda () (cons (point) (org-columns--collect-values)))
-		nil nil (and org-columns-skip-archived-trees 'archive))))
-	  (when cache
-	    (org-columns--set-widths cache)
-	    (org-columns--display-here-title)
-	    (when (setq-local org-columns-flyspell-was-active
-			      (bound-and-true-p flyspell-mode))
-	      (flyspell-mode 0))
-	    (unless (local-variable-p 'org-colview-initial-truncate-line-value)
-	      (setq-local org-colview-initial-truncate-line-value
-			  truncate-lines))
-	    (setq truncate-lines t)
-	    (dolist (entry cache)
-	      (goto-char (car entry))
-	      (org-columns--display-here (cdr entry)))))))))
+  (save-excursion
+   (org-columns-remove-overlays)
+   (when global (goto-char (point-min)))
+   (if (markerp org-columns-begin-marker)
+       (move-marker org-columns-begin-marker (point))
+     (setq org-columns-begin-marker (point-marker)))
+   (org-columns-goto-top-level)
+   ;; Initialize `org-columns-current-fmt' and
+   ;; `org-columns-current-fmt-compiled'.
+   (let ((org-columns--time (float-time (current-time))))
+     (org-columns-get-format columns-fmt-string)
+     (unless org-columns-inhibit-recalculation (org-columns-compute-all))
+     (save-excursion
+       (save-restriction
+	 (when (and (not global) (org-at-heading-p))
+	   (narrow-to-region (point) (org-end-of-subtree t t)))
+	 (when (assoc "CLOCKSUM" org-columns-current-fmt-compiled)
+	   (org-clock-sum))
+	 (when (assoc "CLOCKSUM_T" org-columns-current-fmt-compiled)
+	   (org-clock-sum-today))
+	 (let ((cache
+		;; Collect contents of columns ahead of time so as to
+		;; compute their maximum width.
+		(org-map-entries
+		 (lambda () (cons (point) (org-columns--collect-values)))
+		 nil nil (and org-columns-skip-archived-trees 'archive))))
+	   (when cache
+	     (org-columns--set-widths cache)
+	     (org-columns--display-here-title)
+	     (when (setq-local org-columns-flyspell-was-active
+			       (bound-and-true-p flyspell-mode))
+	       (flyspell-mode 0))
+	     (unless (local-variable-p 'org-colview-initial-truncate-line-value)
+	       (setq-local org-colview-initial-truncate-line-value
+			   truncate-lines))
+	     (setq truncate-lines t)
+	     (dolist (entry cache)
+	       (goto-char (car entry))
+	       (org-columns--display-here (cdr entry))))))))))
 
 (defun org-columns-new (&optional spec &rest attributes)
   "Insert a new column, to the left of the current column.
