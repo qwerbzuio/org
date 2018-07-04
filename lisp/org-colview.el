@@ -1299,7 +1299,7 @@ and variances (respectively) of the individual estimates."
 
 ;;; Dynamic block for Column view
 
-(defun org-columns--capture-view (maxlevel skip-empty format local)
+(defun org-columns--capture-view (maxlevel skip-empty exclude-tags format local)
   "Get the column view of the current buffer.
 
 MAXLEVEL sets the level limit.  SKIP-EMPTY tells whether to skip
@@ -1329,9 +1329,13 @@ other rows.  Each row is a list of fields, as strings, or
 					     'org-columns-value
 					   'org-columns-value-modified)))
 		     row)))
-	   (unless (and skip-empty
-			(let ((r (delete-dups (remove "" row))))
-			  (or (null r) (and has-item (= (length r) 1)))))
+	   (unless (or
+		    (and skip-empty
+			 (let ((r (delete-dups (remove "" row))))
+			   (or (null r) (and has-item (= (length r) 1)))))
+		    (and exclude-tags
+			 (cl-some (lambda (tag) (member tag exclude-tags))
+				  (org-get-tags))))
 	     (push (cons (org-reduced-level (org-current-level)) (nreverse row))
 		   table)))))
      (and maxlevel (format "LEVEL<=%d" maxlevel))
@@ -1375,6 +1379,8 @@ PARAMS is a property list of parameters:
 :skip-empty-rows
 	  When t, skip rows where all specifiers other than ITEM are empty.
 :width    apply widths specified in columns format using <N> specifiers.
+:exclude-tags
+          List of tags to exclude from column view table.
 :format   When non-nil, specify the column view format to use."
   (let ((table
 	 (let ((id (plist-get params :id))
@@ -1399,6 +1405,7 @@ PARAMS is a property list of parameters:
 	      (when view-pos (goto-char view-pos))
 	      (org-columns--capture-view (plist-get params :maxlevel)
 					 (plist-get params :skip-empty-rows)
+					 (plist-get params :exclude-tags)
 					 (plist-get params :format)
 					 view-pos))))))
     (when table
