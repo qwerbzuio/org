@@ -1335,7 +1335,7 @@ other rows.  Each row is a list of fields, as strings, or
 			   (or (null r) (and has-item (= (length r) 1)))))
 		    (and exclude-tags
 			 (cl-some (lambda (tag) (member tag exclude-tags))
-				  (org-get-tags))))
+				  (org-get-tags-at (point)))))
 	     (push (cons (org-reduced-level (org-current-level)) (nreverse row))
 		   table)))))
      (and maxlevel (format "LEVEL<=%d" maxlevel))
