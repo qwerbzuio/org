@@ -18949,7 +18949,15 @@ Some of the options can be changed using the variable
 	    (when (memq type '(latex-environment latex-fragment))
 	      (let ((block-type (eq type 'latex-environment))
 		    (value (org-element-property :value context))
-		    (beg (org-element-property :begin context))
+		    (beg (save-excursion
+                   (goto-char (org-element-property :begin context))
+                   (let ((last-match (point)))
+                     ;; don't hide property lines (e.g. #+CAPTION) by overlay
+                     (while (re-search-forward
+                             "^[ \t]*#\\+.*:.*\n"
+                             (save-excursion (forward-line) (point)) t)
+                       (setq last-match (point)))
+                     last-match)))
 		    (end (save-excursion
 			   (goto-char (org-element-property :end context))
 			   (skip-chars-backward " \r\t\n")
