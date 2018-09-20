@@ -18961,7 +18961,12 @@ Some of the options can be changed using the variable
 		    (end (save-excursion
 			   (goto-char (org-element-property :end context))
 			   (skip-chars-backward " \r\t\n")
-			   (point))))
+			   (point)))
+		    (format-latex-options (copy-tree org-format-latex-options)))
+		(dolist (opt (org-babel-parse-header-arguments
+			      (car (org-element-property
+				    :attr_preview context))))
+		  (plist-put format-latex-options (car opt) (cdr opt)))
 		(cond
 		 ((eq processing-type 'mathjax)
 		  ;; Prepare for MathJax processing.
@@ -18980,13 +18985,13 @@ Some of the options can be changed using the variable
 			 (face (face-at-point))
 			 ;; Get the colors from the face at point.
 			 (fg
-			  (let ((color (plist-get org-format-latex-options
+			  (let ((color (plist-get format-latex-options
 						  :foreground)))
 			    (if (and forbuffer (eq color 'auto))
 				(face-attribute face :foreground nil 'default)
 			      color)))
 			 (bg
-			  (let ((color (plist-get org-format-latex-options
+			  (let ((color (plist-get format-latex-options
 						  :background)))
 			    (if (and forbuffer (eq color 'auto))
 				(face-attribute face :background nil 'default)
@@ -18995,7 +19000,7 @@ Some of the options can be changed using the variable
 				      (list org-format-latex-header
 					    org-latex-default-packages-alist
 					    org-latex-packages-alist
-					    org-format-latex-options
+					    format-latex-options
 					    forbuffer value fg bg))))
 			 (imagetype (or (plist-get processing-info :image-output-type) "png"))
 			 (absprefix (expand-file-name prefix dir))
@@ -19005,7 +19010,7 @@ Some of the options can be changed using the variable
 			 (link (concat sep "[[file:" linkfile "]]" sep))
 			 (options
 			  (org-combine-plists
-			   org-format-latex-options
+			   format-latex-options
 			   `(:foreground ,fg :background ,bg))))
 		    (when msg (message msg cnt))
 		    (unless checkdir-flag ; Ensure the directory exists.

@@ -10398,6 +10398,18 @@ To disable it, simply use
 #+STARTUP: nolatexpreview
 @end example
 
+@vindex ATTR_PREVIEW
+Display of individual latex environments may be controlled by specifying the
+in-buffer setting @code{#+ATTR_PREVIEW}. The same settings as in
+@code{org-format-latex-header} are supported.
+
+@example
+#+ATTR_PREVIEW: :scale 1.2
+\begin@{figure@}
+<some drawing code here>
+\end@{figure@}
+@end example
+
 @node CDLaTeX mode
 @subsection Using CD@LaTeX{} to enter math
 @cindex CD@LaTeX{}
