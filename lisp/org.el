@@ -18859,22 +18859,24 @@ current section.
 With prefix ARG, preview or clear image for all fragments in the
 current subtree or in the whole buffer when used before the first
 headline.  With a prefix ARG `\\[universal-argument] \
-\\[universal-argument]' preview or clear images
-for all fragments in the buffer."
+\\[universal-argument]' preview or clear images for 
+all fragments in the buffer. With negative prefix ARG (may be 
+combined with `\\[universal-argument]' or `\\[universal-argument] \
+\\[universal-argument]'), force recreation of images."
   (interactive "P")
   (when (display-graphic-p)
     (catch 'exit
       (save-excursion
 	(let (beg end msg)
 	  (cond
-	   ((or (equal arg '(16))
-		(and (equal arg '(4))
+	   ((or (equal (abs (prefix-numeric-value arg)) 16)
+		(and (equal (abs (prefix-numeric-value arg)) 4)
 		     (org-with-limited-levels (org-before-first-heading-p))))
 	    (if (org-remove-latex-fragment-image-overlays)
 		(progn (message "LaTeX fragments images removed from buffer")
 		       (throw 'exit nil))
 	      (setq msg "Creating images for buffer...")))
-	   ((equal arg '(4))
+	   ((equal (abs (prefix-numeric-value arg)) 4)
 	    (org-with-limited-levels (org-back-to-heading t))
 	    (setq beg (point))
 	    (setq end (progn (org-end-of-subtree t) (point)))
@@ -18903,7 +18905,8 @@ for all fragments in the buffer."
 		   (message "LaTeX fragment images removed from section")
 		   (throw 'exit nil))
 	       (setq msg "Creating images for section...")))))
-	  (let ((file (buffer-file-name (buffer-base-buffer))))
+	  (let ((file (buffer-file-name (buffer-base-buffer)))
+		(force-recreate (< (prefix-numeric-value arg) 0)))
 	    (org-format-latex
 	     (concat org-preview-latex-image-directory "org-ltximg")
 	     beg end
@@ -18912,11 +18915,13 @@ for all fragments in the buffer."
 	     (if (or (not file) (file-remote-p file))
 		 temporary-file-directory
 	       default-directory)
-	     'overlays msg 'forbuffer org-preview-latex-default-process))
+	     'overlays msg 'forbuffer org-preview-latex-default-process
+	     force-recreate))
 	  (message (concat msg "done")))))))
 
 (defun org-format-latex
-    (prefix &optional beg end dir overlays msg forbuffer processing-type)
+    (prefix &optional beg end dir overlays msg forbuffer processing-type
+	    force-recreate)
   "Replace LaTeX fragments with links to an image.
 
 The function takes care of creating the replacement image.
@@ -18928,6 +18933,8 @@ When optional argument OVERLAYS is non-nil, display the image on
 top of the fragment instead of replacing it.
 
 PROCESSING-TYPE is the conversion method to use, as a symbol.
+
+If FORCE-RECREATE is non-nil, recreate images even if they exist.
 
 Some of the options can be changed using the variable
 `org-format-latex-options', which see."
@@ -19018,7 +19025,7 @@ Some of the options can be changed using the variable
 		      (let ((todir (file-name-directory absprefix)))
 			(unless (file-directory-p todir)
 			  (make-directory todir t))))
-		    (unless (file-exists-p movefile)
+		    (when (or force-recreate (not (file-exists-p movefile)))
 		      (org-create-formula-image
 		       value movefile options forbuffer processing-type))
 		    (if overlays
