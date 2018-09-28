@@ -18571,6 +18571,9 @@ a HTML file."
 			   (if (string= bg "Transparent") "white" bg))))
 	       (with-temp-file texfile
 		 (insert latex-header)
+		 (when-let ((headers (plist-get options :headers)))
+		   (dolist (h headers)
+		     (insert h)))
 		 (insert "\n\\begin{document}\n"
 			 "\\definecolor{fg}{rgb}{" fg "}\n"
 			 "\\definecolor{bg}{rgb}{" bg "}\n"
