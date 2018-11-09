@@ -37,7 +37,11 @@
   (let ((buf (get-buffer-create org-babel-error-buffer-name)))
     (with-current-buffer buf
       (goto-char (point-max))
-      (save-excursion (insert stderr)))
+      (save-excursion
+	(when (bound-and-true-p org-babel-current-src-block-location)
+	  (insert (format "Error in src-block at position %s:\n"
+			  org-babel-current-src-block-location)))
+	(insert stderr)))
     (display-buffer buf))
   (message "Babel evaluation exited with code %S" exit-code))
 
