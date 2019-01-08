@@ -2290,7 +2290,9 @@ CONTENTS is nil.  INFO is a plist holding contextual information."
 			(org-latex--label latex-environment info nil t)
 		      (org-latex--caption/label-string latex-environment info)))
 	   (caption-above-p
-	    (memq type (append (plist-get info :latex-caption-above) '(math)))))
+	    (memq type (append (plist-get info :latex-caption-above) '(math))))
+	   (fcapside
+	    (and (memq type '(image)) (plist-get info :capbeside))))
       (if (not (or (org-element-property :name latex-environment)
 		   (org-element-property :caption latex-environment)))
 	  value
@@ -2300,13 +2302,21 @@ CONTENTS is nil.  INFO is a plist holding contextual information."
 	;; is not a math environment.
 	(with-temp-buffer
 	  (insert value)
-	  (if caption-above-p
+	  (if fcapside
 	      (progn
 		(goto-char (point-min))
-		(forward-line))
-	    (goto-char (point-max))
-	    (forward-line -1))
-	  (insert caption)
+		(forward-line)
+		(insert (format "\\fcapside{%s}{" caption))
+		(goto-char (point-max))
+		(forward-line -1)
+		(insert "}"))
+	    (if caption-above-p
+		(progn
+		  (goto-char (point-min))
+		  (forward-line))
+	      (goto-char (point-max))
+	      (forward-line -1))
+	    (insert caption))
 	  (buffer-string))))))
 
 ;;;; Latex Fragment
