@@ -1191,25 +1191,28 @@ or context.  Valid contexts are
 
 Allowed visibility spans are
 
-  minimal        show current headline; if point is not on headline,
-                 also show entry
+  minimal          show current headline; if point is not on headline,
+                   also show entry
+		   
+  local            show current headline, entry and next headline
+		   
+  ancestors        show current headline and its direct ancestors; if
+                   point is not on headline, also show entry
 
-  local          show current headline, entry and next headline
+  ancestors-local  show current headline, its direct ancestors, entry,
+                   and next headline
 
-  ancestors      show current headline and its direct ancestors; if
-                 point is not on headline, also show entry
-
-  lineage        show current headline, its direct ancestors and all
-                 their children; if point is not on headline, also show
-                 entry and first child
-
-  tree           show current headline, its direct ancestors and all
-                 their children; if point is not on headline, also show
-                 entry and all children
-
-  canonical      show current headline, its direct ancestors along with
-                 their entries and children; if point is not located on
-                 the headline, also show current entry and all children
+  lineage          show current headline, its direct ancestors and all
+                   their children; if point is not on headline, also show
+                   entry and first child
+		   
+  tree             show current headline, its direct ancestors and all
+                   their children; if point is not on headline, also show
+                   entry and all children
+		   
+  canonical        show current headline, its direct ancestors along with
+                   their entries and children; if point is not located on
+                   the headline, also show current entry and all children
 
 As special cases, a nil or t value means show all contexts in
 `minimal' or `canonical' view, respectively.
@@ -13904,12 +13907,12 @@ be shown."
 
 (defun org-show-set-visibility (detail)
   "Set visibility around point according to DETAIL.
-DETAIL is either nil, `minimal', `local', `ancestors', `lineage',
-`tree', `canonical' or t.  See `org-show-context-detail' for more
+DETAIL is either nil, `minimal', `local', `ancestors', `ancestors-local',
+`lineage', `tree', `canonical' or t.  See `org-show-context-detail' for more
 information."
   ;; Show current heading and possibly its entry, following headline
   ;; or all children.
-  (if (and (org-at-heading-p) (not (eq detail 'local)))
+  (if (and (org-at-heading-p) (not (memq detail '(local ancestors-local))))
       (org-flag-heading nil)
     (org-show-entry)
     ;; If point is hidden within a drawer or a block, make sure to
@@ -13928,7 +13931,7 @@ information."
   ;; Show all siblings.
   (when (eq detail 'lineage) (org-show-siblings))
   ;; Show ancestors, possibly with their children.
-  (when (memq detail '(ancestors lineage tree canonical t))
+  (when (memq detail '(ancestors ancestors-local lineage tree canonical t))
     (save-excursion
       (while (org-up-heading-safe)
 	(org-flag-heading nil)
