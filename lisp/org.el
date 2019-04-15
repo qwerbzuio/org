@@ -6311,9 +6311,12 @@ of stars.  Use `org-reduced-level' to remove the effect of
 takes into consideration inlinetasks."
   (org-with-wide-buffer
    (end-of-line)
-   (if (re-search-backward org-outline-regexp-bol nil t)
-       (1- (- (match-end 0) (match-beginning 0)))
-     0)))
+   (let ((impl (lambda () (if (re-search-backward org-outline-regexp-bol nil t)
+	    (1- (- (match-end 0) (match-beginning 0)))
+	    0))))
+     (if (org-inlinetask-in-task-p)
+	(funcall impl)
+      (org-with-limited-levels (funcall impl))))))
 
 (defvar org-font-lock-keywords nil)
 
