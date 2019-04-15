@@ -8066,7 +8066,11 @@ When a subtree is being promoted, the hook will be called for each node.")
 See also `org-promote'."
   (interactive)
   (save-excursion
-    (org-with-limited-levels (org-map-tree 'org-promote)))
+    (org-with-limited-levels
+     (org-map-tree
+      (lambda ()
+	(unless (org-inlinetask-in-task-p)
+	  (org-promote))))))
   (org-fix-position-after-promote))
 
 (defun org-demote-subtree ()
@@ -8074,7 +8078,11 @@ See also `org-promote'."
 See `org-demote' and `org-promote'."
   (interactive)
   (save-excursion
-    (org-with-limited-levels (org-map-tree 'org-demote)))
+    (org-with-limited-levels
+     (org-map-tree
+      (lambda ()
+	(unless (org-inlinetask-in-task-p)
+	  (org-demote))))))
   (org-fix-position-after-promote))
 
 (defun org-do-promote ()
@@ -8084,7 +8092,10 @@ headings in the region."
   (interactive)
   (save-excursion
     (if (org-region-active-p)
-	(org-map-region 'org-promote (region-beginning) (region-end))
+	(org-map-region (lambda ()
+			  (unless (org-inlinetask-in-task-p)
+			    (org-promote)))
+			(region-beginning) (region-end))
       (org-promote)))
   (org-fix-position-after-promote))
 
@@ -8095,7 +8106,10 @@ headings in the region."
   (interactive)
   (save-excursion
     (if (org-region-active-p)
-	(org-map-region 'org-demote (region-beginning) (region-end))
+	(org-map-region (lambda ()
+			  (when (org-inlinetask-in-task-p)
+			    (org-demote)))
+			(region-beginning) (region-end))
       (org-demote)))
   (org-fix-position-after-promote))
 
