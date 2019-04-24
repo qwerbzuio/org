@@ -6836,7 +6836,7 @@ Use `\\[org-edit-special]' to edit table.el tables"))
 
        ;; Inline task: delegate to `org-inlinetask-toggle-visibility'.
        ((and (featurep 'org-inlinetask)
-	     (org-inlinetask-at-task-p)
+	     (or (org-inlinetask-at-task-p) (org-inlinetask-end-p))
 	     (or (bolp) (not (eq org-cycle-emulate-tab 'exc-hl-bol))))
 	(org-inlinetask-toggle-visibility))
 
