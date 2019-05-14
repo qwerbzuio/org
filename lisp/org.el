@@ -21064,6 +21064,20 @@ Use `\\[org-edit-special]' to edit table.el tables"))
     (org-reset-file-cache))
   (message "%s restarted" major-mode))
 
+(defun org-show-branches (&optional arg)
+  "Like `outline-show-branches', but don't show inlinetasks. With
+prefix \\[univeral-argument], also show inlinetasks. With numeric
+prefix, show that many child levels."
+  (interactive "P")
+  (cond
+   ((and arg (not (numberp arg)))
+    (outline-show-branches))
+   ((numberp arg)
+    (outline-show-children arg))
+   (t
+    (org-with-limited-levels
+     (outline-show-branches)))))
+
 (defun org-kill-note-or-show-branches ()
   "Abort storing current note, or call `outline-show-branches'."
   (interactive)
@@ -21072,7 +21086,7 @@ Use `\\[org-edit-special]' to edit table.el tables"))
 	(save-restriction
 	  (org-narrow-to-subtree)
 	  (org-flag-subtree t)
-	  (call-interactively 'outline-show-branches)
+	  (call-interactively 'org-show-branches)
 	  (org-hide-archived-subtrees (point-min) (point-max))))
     (let ((org-note-abort t))
       (funcall org-finish-function))))
