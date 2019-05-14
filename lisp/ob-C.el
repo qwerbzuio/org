@@ -160,16 +160,18 @@ or `org-babel-execute:C++' or `org-babel-execute:D'."
     (with-temp-file tmp-src-file (insert full-body))
     (pcase org-babel-c-variant
       ((or `c `cpp)
-       (org-babel-eval
-	(format "%s -o %s %s %s %s"
-		(pcase org-babel-c-variant
-		  (`c org-babel-C-compiler)
-		  (`cpp org-babel-C++-compiler))
-		tmp-bin-file
-		flags
-		(org-babel-process-file-name tmp-src-file)
-		libs)
-	""))
+       (unless
+	   (org-babel-eval
+	    (format "%s -o %s %s %s %s"
+		    (pcase org-babel-c-variant
+		      (`c org-babel-C-compiler)
+		      (`cpp org-babel-C++-compiler))
+		    tmp-bin-file
+		    flags
+		    (org-babel-process-file-name tmp-src-file)
+		    libs)
+	    "")
+	 (error "Compilation failed")))
       (`d nil)) ;; no separate compilation for D
     (let ((results
 	   (org-babel-eval
