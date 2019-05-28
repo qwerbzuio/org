@@ -329,14 +329,18 @@ This function is meant to be used in `org-cycle-hook'."
        (save-excursion
 	 (goto-char (point-min))
 	 (while (re-search-forward regexp nil t)
-	   (org-inlinetask-toggle-visibility)
+	   (when (not (eq (get-char-property (1+ (point-at-eol)) 'invisible)
+			  'outline))
+	     (org-inlinetask-toggle-visibility))
 	   (org-inlinetask-goto-end)))))
     (`children
      (save-excursion
        (while
 	   (or (org-inlinetask-at-task-p)
 	       (and (outline-next-heading) (org-inlinetask-at-task-p)))
-	 (org-inlinetask-toggle-visibility)
+	 (when (not (eq (get-char-property (1+ (point-at-eol)) 'invisible)
+			'outline))
+	   (org-inlinetask-toggle-visibility))
 	 (org-inlinetask-goto-end))))))
 
 (defun org-inlinetask-remove-END-maybe ()
