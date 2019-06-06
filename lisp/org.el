@@ -19006,9 +19006,15 @@ Some of the options can be changed using the variable
 		 ((assq processing-type org-preview-latex-process-alist)
 		  ;; Process to an image.
 		  (cl-incf cnt)
-		  (goto-char beg)
-		  (org-process-to-image beg end dir prefix format-latex-options cnt checkdir-flag
-					force-recreate processing-type forbuffer msg overlays))
+		  (let ((org-process-to-image-async nil)
+			(org-process-to-image-args
+			 (list beg end dir prefix format-latex-options cnt checkdir-flag
+			       force-recreate processing-type forbuffer msg overlays)))
+		    (if org-process-to-image-async
+			(make-thread
+			 (apply-partially 'org-process-to-image org-process-to-image-args)
+			 (format "org-process-to-image(%s)" cnt))
+		      (apply 'org-process-to-image org-process-to-image-args))))
 		 ((eq processing-type 'mathml)
 		  ;; Process to MathML.
 		  (unless (org-format-latex-mathml-available-p)
@@ -19026,6 +19032,7 @@ Some of the options can be changed using the variable
 (defun org-process-to-image (beg end dir prefix format-latex-options cnt checkdir-flag
 				 &optional force-recreate processing-type forbuffer msg overlays)
   "Process to an image at point."
+  (goto-char beg)
   (let* ((context (org-element-context))
 	 (type (org-element-type context))
 	 (block-type (eq type 'latex-environment))
