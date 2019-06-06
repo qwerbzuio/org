@@ -19007,62 +19007,8 @@ Some of the options can be changed using the variable
 		  ;; Process to an image.
 		  (cl-incf cnt)
 		  (goto-char beg)
-		  (let* ((processing-info
-			  (cdr (assq processing-type org-preview-latex-process-alist)))
-			 (face (face-at-point))
-			 ;; Get the colors from the face at point.
-			 (fg
-			  (let ((color (plist-get format-latex-options
-						  :foreground)))
-			    (if (and forbuffer (eq color 'auto))
-				(face-attribute face :foreground nil 'default)
-			      color)))
-			 (bg
-			  (let ((color (plist-get format-latex-options
-						  :background)))
-			    (if (and forbuffer (eq color 'auto))
-				(face-attribute face :background nil 'default)
-			      color)))
-			 (hash (sha1 (prin1-to-string
-				      (list org-format-latex-header
-					    org-latex-default-packages-alist
-					    org-latex-packages-alist
-					    format-latex-options
-					    forbuffer value fg bg))))
-			 (imagetype (or (plist-get processing-info :image-output-type) "png"))
-			 (absprefix (expand-file-name prefix dir))
-			 (linkfile (format "%s_%s.%s" prefix hash imagetype))
-			 (movefile (format "%s_%s.%s" absprefix hash imagetype))
-			 (sep (and block-type "\n\n"))
-			 (link (concat sep "[[file:" linkfile "]]" sep))
-			 (options
-			  (org-combine-plists
-			   format-latex-options
-			   `(:foreground ,fg :background ,bg))))
-		    (when msg (message msg cnt))
-		    (unless checkdir-flag ; Ensure the directory exists.
-		      (setq checkdir-flag t)
-		      (let ((todir (file-name-directory absprefix)))
-			(unless (file-directory-p todir)
-			  (make-directory todir t))))
-		    (when (or force-recreate (not (file-exists-p movefile)))
-		      (org-create-formula-image
-		       value movefile options forbuffer processing-type))
-		    (if overlays
-			(progn
-			  (dolist (o (overlays-in beg end))
-			    (when (eq (overlay-get o 'org-overlay-type)
-				      'org-latex-overlay)
-			      (delete-overlay o)))
-			  (org--format-latex-make-overlay beg end movefile imagetype)
-			  (goto-char end))
-		      (delete-region beg end)
-		      (insert
-		       (org-add-props link
-			   (list 'org-latex-src
-				 (replace-regexp-in-string "\"" "" value)
-				 'org-latex-src-embed-type
-				 (if block-type 'paragraph 'character)))))))
+		  (org-process-to-image beg end dir prefix format-latex-options cnt checkdir-flag
+					force-recreate processing-type forbuffer msg overlays))
 		 ((eq processing-type 'mathml)
 		  ;; Process to MathML.
 		  (unless (org-format-latex-mathml-available-p)
@@ -19076,6 +19022,70 @@ Some of the options can be changed using the variable
 		 (t
 		  (error "Unknown conversion process %s for LaTeX fragments"
 			 processing-type)))))))))))
+
+(defun org-process-to-image (beg end dir prefix format-latex-options cnt checkdir-flag
+				 &optional force-recreate processing-type forbuffer msg overlays)
+  "Process to an image at point."
+  (let* ((context (org-element-context))
+	 (type (org-element-type context))
+	 (block-type (eq type 'latex-environment))
+	 (value (org-element-property :value context))
+	 (processing-info
+	  (cdr (assq processing-type org-preview-latex-process-alist)))
+	 (face (face-at-point))
+	 ;; Get the colors from the face at point.
+	 (fg
+	  (let ((color (plist-get format-latex-options
+				  :foreground)))
+	    (if (and forbuffer (eq color 'auto))
+		(face-attribute face :foreground nil 'default)
+	      color)))
+	 (bg
+	  (let ((color (plist-get format-latex-options
+				  :background)))
+	    (if (and forbuffer (eq color 'auto))
+		(face-attribute face :background nil 'default)
+	      color)))
+	 (hash (sha1 (prin1-to-string
+		      (list org-format-latex-header
+			    org-latex-default-packages-alist
+			    org-latex-packages-alist
+			    format-latex-options
+			    forbuffer value fg bg))))
+	 (imagetype (or (plist-get processing-info :image-output-type) "png"))
+	 (absprefix (expand-file-name prefix dir))
+	 (linkfile (format "%s_%s.%s" prefix hash imagetype))
+	 (movefile (format "%s_%s.%s" absprefix hash imagetype))
+	 (sep (and block-type "\n\n"))
+	 (link (concat sep "[[file:" linkfile "]]" sep))
+	 (options
+	  (org-combine-plists
+	   format-latex-options
+	   `(:foreground ,fg :background ,bg))))
+    (when msg (message msg cnt))
+    (unless checkdir-flag ; Ensure the directory exists.
+      (setq checkdir-flag t)
+      (let ((todir (file-name-directory absprefix)))
+	(unless (file-directory-p todir)
+	  (make-directory todir t))))
+    (when (or force-recreate (not (file-exists-p movefile)))
+      (org-create-formula-image
+       value movefile options forbuffer processing-type))
+    (if overlays
+	(progn
+	  (dolist (o (overlays-in beg end))
+	    (when (eq (overlay-get o 'org-overlay-type)
+		      'org-latex-overlay)
+	      (delete-overlay o)))
+	  (org--format-latex-make-overlay beg end movefile imagetype)
+	  (goto-char end))
+      (delete-region beg end)
+      (insert
+       (org-add-props link
+	   (list 'org-latex-src
+		 (replace-regexp-in-string "\"" "" value)
+		 'org-latex-src-embed-type
+		 (if block-type 'paragraph 'character)))))))
 
 (defun org-create-math-formula (latex-frag &optional mathml-file)
   "Convert LATEX-FRAG to MathML and store it in MATHML-FILE.
