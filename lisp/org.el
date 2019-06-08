@@ -19006,10 +19006,11 @@ Some of the options can be changed using the variable
 		 ((assq processing-type org-preview-latex-process-alist)
 		  ;; Process to an image.
 		  (cl-incf cnt)
-		  (let ((org-process-to-image-async nil)
-			(org-process-to-image-args
-			 (list beg end dir prefix format-latex-options cnt checkdir-flag
-			       force-recreate processing-type forbuffer msg overlays)))
+		  (let* ((org-process-to-image-async nil)
+			 (org-process-to-image-args
+			  (list beg end dir prefix format-latex-options cnt checkdir-flag
+				force-recreate processing-type forbuffer msg overlays
+				org-process-to-image-async)))
 		    (if org-process-to-image-async
 			(make-thread
 			 (apply-partially 'org-process-to-image org-process-to-image-args)
@@ -19030,7 +19031,7 @@ Some of the options can be changed using the variable
 			 processing-type)))))))))))
 
 (defun org-process-to-image (beg end dir prefix format-latex-options cnt checkdir-flag
-				 &optional force-recreate processing-type forbuffer msg overlays)
+				 &optional force-recreate processing-type forbuffer msg overlays async)
   "Process to an image at point."
   (goto-char beg)
   (let* ((context (org-element-context))
@@ -19077,7 +19078,7 @@ Some of the options can be changed using the variable
 	  (make-directory todir t))))
     (when (or force-recreate (not (file-exists-p movefile)))
       (org-create-formula-image
-       value movefile options forbuffer processing-type))
+       value movefile options forbuffer processing-type async))
     (if overlays
 	(progn
 	  (dolist (o (overlays-in beg end))
@@ -19195,7 +19196,7 @@ the horizontal and vertical directions."
     (error "Attempt to calculate the dpi of a non-graphic display")))
 
 (defun org-create-formula-image
-    (string tofile options buffer &optional processing-type)
+    (string tofile options buffer &optional processing-type async)
   "Create an image from LaTeX source using external processes.
 
 The LaTeX STRING is saved to a temporary LaTeX file, then
@@ -19286,14 +19287,15 @@ a HTML file."
 			    processing-type))
 	   (image-input-file
 	    (org-compile-file
-	     texfile latex-compiler image-input-type err-msg log-buf))
+	     texfile latex-compiler image-input-type err-msg log-buf async))
 	   (image-output-file
 	    (org-compile-file
 	     image-input-file image-converter image-output-type err-msg log-buf
 	     `((?F . ,(shell-quote-argument fg))
 	       (?B . ,(shell-quote-argument bg))
 	       (?D . ,(shell-quote-argument (format "%s" dpi)))
-	       (?S . ,(shell-quote-argument (format "%s" (/ dpi 140.0))))))))
+	       (?S . ,(shell-quote-argument (format "%s" (/ dpi 140.0)))))
+	      async)))
       (copy-file image-output-file tofile 'replace)
       (dolist (e post-clean)
 	(when (file-exists-p (concat texfilebase e))
@@ -22489,7 +22491,7 @@ returned by, e.g., `current-time'."
        (not (time-less-p (cl-subseq (nth 5 (file-attributes file)) 0 2)
 			 (cl-subseq time 0 2)))))
 
-(defun org-compile-file (source process ext &optional err-msg log-buf spec)
+(defun org-compile-file (source process ext &optional err-msg log-buf spec async)
   "Compile a SOURCE file using PROCESS.
 
 PROCESS is either a function or a list of shell commands, as
@@ -22535,7 +22537,13 @@ it for output."
 			       (?o . ,(shell-quote-argument out-dir))
 			       (?O . ,(shell-quote-argument output))))))
 	   (dolist (command process)
-	     (shell-command (format-spec command spec) log-buf))
+	     (if async
+		 (let (command-arg-list (split-string-and-unquote (format-spec command spec)))
+		   (make-process
+	       	    :name "org-compile-file"
+	       	    :buffer log-buf
+	       	    :command command-arg-list))
+	       (shell-command (format-spec command spec) log-buf)))
 	   (when log-buf (with-current-buffer log-buf (compilation-mode)))))
 	(_ (error "No valid command to process %S%s" source err-msg))))
     ;; Check for process failure.  Output file is expected to be
