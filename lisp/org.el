@@ -111,6 +111,9 @@ sure that we are at the beginning of the line.")
   "Matches a headline, putting stars and text into groups.
 Stars are put in group 1 and the trimmed body in group 2.")
 
+(defvar org-process-to-image-mutex (make-mutex "org-process-to-image-mutex"))
+(defvar org-process-to-image-condition (make-condition-variable org-process-to-image-mutex))
+
 (declare-function calendar-check-holidays "holidays" (date))
 (declare-function cdlatex-environment "ext:cdlatex" (environment item))
 (declare-function isearch-no-upper-case-p "isearch" (string regexp-flag))
@@ -18926,7 +18929,8 @@ combined with `\\[universal-argument]' or `\\[universal-argument] \
 		   (throw 'exit nil))
 	       (setq msg "Creating images for section...")))))
 	  (let ((file (buffer-file-name (buffer-base-buffer)))
-		(force-recreate (< (prefix-numeric-value arg) 0)))
+		(force-recreate (< (prefix-numeric-value arg) 0))
+		(async nil))
 	    (org-format-latex
 	     (concat org-preview-latex-image-directory "org-ltximg")
 	     beg end
@@ -18936,12 +18940,12 @@ combined with `\\[universal-argument]' or `\\[universal-argument] \
 		 temporary-file-directory
 	       default-directory)
 	     'overlays msg 'forbuffer org-preview-latex-default-process
-	     force-recreate))
+	     force-recreate async))
 	  (message (concat msg "done")))))))
 
 (defun org-format-latex
     (prefix &optional beg end dir overlays msg forbuffer processing-type
-	    force-recreate)
+	    force-recreate async)
   "Replace LaTeX fragments with links to an image.
 
 The function takes care of creating the replacement image.
@@ -19006,15 +19010,18 @@ Some of the options can be changed using the variable
 		 ((assq processing-type org-preview-latex-process-alist)
 		  ;; Process to an image.
 		  (cl-incf cnt)
-		  (let* ((org-process-to-image-async nil)
-			 (org-process-to-image-args
+		  (let* ((org-process-to-image-args
 			  (list beg end dir prefix format-latex-options cnt checkdir-flag
 				force-recreate processing-type forbuffer msg overlays
-				org-process-to-image-async)))
-		    (if org-process-to-image-async
-			(make-thread
-			 (apply-partially 'org-process-to-image org-process-to-image-args)
-			 (format "org-process-to-image(%s)" cnt))
+				async)))
+		    (if async
+			(thread-join
+			 (make-thread ;; the thread has to be created even higher up in the stack
+			  (lexical-let ((args org-process-to-image-args))
+			    (lambda ()
+			      (with-mutex org-process-to-image-mutex
+				(apply 'org-process-to-image args))))
+			  (format "org-process-to-image(%s)" cnt)))
 		      (apply 'org-process-to-image org-process-to-image-args))))
 		 ((eq processing-type 'mathml)
 		  ;; Process to MathML.
@@ -19033,67 +19040,68 @@ Some of the options can be changed using the variable
 (defun org-process-to-image (beg end dir prefix format-latex-options cnt checkdir-flag
 				 &optional force-recreate processing-type forbuffer msg overlays async)
   "Process to an image at point."
-  (goto-char beg)
-  (let* ((context (org-element-context))
-	 (type (org-element-type context))
-	 (block-type (eq type 'latex-environment))
-	 (value (org-element-property :value context))
-	 (processing-info
-	  (cdr (assq processing-type org-preview-latex-process-alist)))
-	 (face (face-at-point))
-	 ;; Get the colors from the face at point.
-	 (fg
-	  (let ((color (plist-get format-latex-options
-				  :foreground)))
-	    (if (and forbuffer (eq color 'auto))
-		(face-attribute face :foreground nil 'default)
-	      color)))
-	 (bg
-	  (let ((color (plist-get format-latex-options
-				  :background)))
-	    (if (and forbuffer (eq color 'auto))
-		(face-attribute face :background nil 'default)
-	      color)))
-	 (hash (sha1 (prin1-to-string
-		      (list org-format-latex-header
-			    org-latex-default-packages-alist
-			    org-latex-packages-alist
-			    format-latex-options
-			    forbuffer value fg bg))))
-	 (imagetype (or (plist-get processing-info :image-output-type) "png"))
-	 (absprefix (expand-file-name prefix dir))
-	 (linkfile (format "%s_%s.%s" prefix hash imagetype))
-	 (movefile (format "%s_%s.%s" absprefix hash imagetype))
-	 (sep (and block-type "\n\n"))
-	 (link (concat sep "[[file:" linkfile "]]" sep))
-	 (options
-	  (org-combine-plists
-	   format-latex-options
-	   `(:foreground ,fg :background ,bg))))
-    (when msg (message msg cnt))
-    (unless checkdir-flag ; Ensure the directory exists.
-      (setq checkdir-flag t)
-      (let ((todir (file-name-directory absprefix)))
-	(unless (file-directory-p todir)
-	  (make-directory todir t))))
-    (when (or force-recreate (not (file-exists-p movefile)))
-      (org-create-formula-image
-       value movefile options forbuffer processing-type async))
-    (if overlays
-	(progn
-	  (dolist (o (overlays-in beg end))
-	    (when (eq (overlay-get o 'org-overlay-type)
-		      'org-latex-overlay)
-	      (delete-overlay o)))
-	  (org--format-latex-make-overlay beg end movefile imagetype)
-	  (goto-char end))
-      (delete-region beg end)
-      (insert
-       (org-add-props link
-	   (list 'org-latex-src
-		 (replace-regexp-in-string "\"" "" value)
-		 'org-latex-src-embed-type
-		 (if block-type 'paragraph 'character)))))))
+  (save-excursion
+    (goto-char beg)
+    (let* ((context (org-element-context))
+	   (type (org-element-type context))
+	   (block-type (eq type 'latex-environment))
+	   (value (org-element-property :value context))
+	   (processing-info
+	    (cdr (assq processing-type org-preview-latex-process-alist)))
+	   (face (face-at-point))
+	   ;; Get the colors from the face at point.
+	   (fg
+	    (let ((color (plist-get format-latex-options
+				    :foreground)))
+	      (if (and forbuffer (eq color 'auto))
+		  (face-attribute face :foreground nil 'default)
+		color)))
+	   (bg
+	    (let ((color (plist-get format-latex-options
+				    :background)))
+	      (if (and forbuffer (eq color 'auto))
+		  (face-attribute face :background nil 'default)
+		color)))
+	   (hash (sha1 (prin1-to-string
+			(list org-format-latex-header
+			      org-latex-default-packages-alist
+			      org-latex-packages-alist
+			      format-latex-options
+			      forbuffer value fg bg))))
+	   (imagetype (or (plist-get processing-info :image-output-type) "png"))
+	   (absprefix (expand-file-name prefix dir))
+	   (linkfile (format "%s_%s.%s" prefix hash imagetype))
+	   (movefile (format "%s_%s.%s" absprefix hash imagetype))
+	   (sep (and block-type "\n\n"))
+	   (link (concat sep "[[file:" linkfile "]]" sep))
+	   (options
+	    (org-combine-plists
+	     format-latex-options
+	     `(:foreground ,fg :background ,bg))))
+      (when msg (message msg cnt))
+      (unless checkdir-flag ; Ensure the directory exists.
+	(setq checkdir-flag t)
+	(let ((todir (file-name-directory absprefix)))
+	  (unless (file-directory-p todir)
+	    (make-directory todir t))))
+      (when (or force-recreate (not (file-exists-p movefile)))
+	(org-create-formula-image
+	 value movefile options forbuffer processing-type async))
+      (if overlays
+	  (progn
+	    (dolist (o (overlays-in beg end))
+	      (when (eq (overlay-get o 'org-overlay-type)
+			'org-latex-overlay)
+		(delete-overlay o)))
+	    (org--format-latex-make-overlay beg end movefile imagetype)
+	    (goto-char end))
+	(delete-region beg end)
+	(insert
+	 (org-add-props link
+	     (list 'org-latex-src
+		   (replace-regexp-in-string "\"" "" value)
+		   'org-latex-src-embed-type
+		   (if block-type 'paragraph 'character))))))))
 
 (defun org-create-math-formula (latex-frag &optional mathml-file)
   "Convert LATEX-FRAG to MathML and store it in MATHML-FILE.
@@ -19287,7 +19295,7 @@ a HTML file."
 			    processing-type))
 	   (image-input-file
 	    (org-compile-file
-	     texfile latex-compiler image-input-type err-msg log-buf async))
+	     texfile latex-compiler image-input-type err-msg log-buf nil async))
 	   (image-output-file
 	    (org-compile-file
 	     image-input-file image-converter image-output-type err-msg log-buf
@@ -22538,11 +22546,14 @@ it for output."
 			       (?O . ,(shell-quote-argument output))))))
 	   (dolist (command process)
 	     (if async
-		 (let (command-arg-list (split-string-and-unquote (format-spec command spec)))
+		 (let ((command-arg-list (split-string-and-unquote (format-spec command spec))))
 		   (make-process
 	       	    :name "org-compile-file"
 	       	    :buffer log-buf
-	       	    :command command-arg-list))
+	       	    :command command-arg-list
+		    :sentinel (lambda (process event) ;; we get a deadlock here...
+				(condition-notify org-process-to-image-condition)))
+		   (condition-wait org-process-to-image-condition))
 	       (shell-command (format-spec command spec) log-buf)))
 	   (when log-buf (with-current-buffer log-buf (compilation-mode)))))
 	(_ (error "No valid command to process %S%s" source err-msg))))
