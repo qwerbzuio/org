@@ -2750,45 +2750,13 @@ Para2"
     ;; Export subsequent inlinetasks to HTML
     (should
      (equal
-      "<?xml version=\"1.0\" encoding=\"utf-8\"?>
-<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"
-\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">
-<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\" xml:lang=\"en\">
-<head>
-<!--  -->
-<meta http-equiv=\"Content-Type\" content=\"text/html;charset=utf-8\" />
-<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
-<title>&lrm;</title>
-<meta name=\"generator\" content=\"Org mode\" />
-</head>
-<body>
-<div id=\"content\">
-<div class=\"inlinetask\">
-<b>Inline1</b><br />
-</div>
-<p>
-
-</p>
-
-<div class=\"inlinetask\">
-<b>Inline2</b><br />
-</div>
-</div>
-</body>
-</html>"
-      (let ((org-inlinetask-min-level 3)
-	    (org-export-with-author nil)
-	    (org-export-with-date nil)
-	    (org-export-with-timestamps nil)
-	    (org-export-with-toc nil)
-	    (org-export-with-section-numbers nil)
-	    (org-html-head-include-default-style nil)
-	    (org-html-head-include-scripts nil)
-	    (org-html-postamble nil)
-	    (org-html-metadata-timestamp-format ""))
+      "*** Inline1\n\n\n*** Inline2\n"
+      (let ((org-inlinetask-min-level 3))
 	(org-test-with-temp-text
 	    "*** Inline1\n*** END\n\n*** Inline2\n*** END"
-	  (org-export-as 'html)))))))
+	  (progn
+	    (org-match-sparse-tree nil "")
+	    (org-export-as (org-test-default-backend) nil t))))))))
 
 
 
