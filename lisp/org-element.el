@@ -1112,6 +1112,7 @@ Assume point is at beginning of the inline task."
 	   (contents-end (and contents-begin task-end))
 	   (end (progn (when task-end (goto-char task-end))
 		       (forward-line)
+		       (skip-chars-forward " \r\t\n" limit)
 		       (if (eobp) (point) (line-beginning-position))))
 	   (inlinetask
 	    (list 'inlinetask

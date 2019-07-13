@@ -1387,10 +1387,7 @@ DEADLINE: <2012-03-29 thu.>"
       ;; Handle non-empty blank line at the end of buffer.
       (should
        (org-test-with-temp-text "*************** Task\n*************** END\n "
-	 (= (org-element-property :end (org-element-at-point))
-	    (save-excursion
-	      (goto-char (point-max))
-	      (line-beginning-position))))))))
+	 (= (org-element-property :end (org-element-at-point)) (point-max)))))))
 
 
 ;;;; Italic
