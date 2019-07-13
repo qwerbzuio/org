@@ -2110,6 +2110,7 @@ contextual information."
 CONTENTS holds the contents of the block.  INFO is a plist
 holding contextual information."
   (let ((title (org-export-data (org-element-property :title inlinetask) info))
+	(post-blank (org-element-property :post-blank inlinetask))
 	(todo (and (plist-get info :with-todo-keywords)
 		   (let ((todo (org-element-property :todo-keyword inlinetask)))
 		     (and todo (org-export-data todo info)))))
@@ -2119,8 +2120,10 @@ holding contextual information."
 	(priority (and (plist-get info :with-priority)
 		       (org-element-property :priority inlinetask)))
 	(contents (concat (org-latex--label inlinetask info) contents)))
-    (funcall (plist-get info :latex-format-inlinetask-function)
-	     todo todo-type priority title tags contents info)))
+    (format "%s%s"
+	    (funcall (plist-get info :latex-format-inlinetask-function)
+		     todo todo-type priority title tags contents info)
+	    (if post-blank "\n" ""))))
 
 (defun org-latex-format-inlinetask-default-function
     (todo _todo-type priority title tags contents _info)
